@@ -61,6 +61,9 @@ public class GridDensityPopulator {
         int mapWidth = config.mapWidth();
         int mapHeight = config.mapHeight();
         String filePath = config.filePath();
+        long errorCount = 0;
+        long loggingErrorCount=config.errorCount();
+        if (loggingErrorCount == -1 ) { loggingErrorCount = Long.MAX_VALUE;}
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -79,13 +82,14 @@ public class GridDensityPopulator {
 
                 String[] parts = line.split(delimiter);
 
-                if (parts.length < 2) {
-
-                    logger.warn(
-                            "Warning (Pass 2, Line {}): Skipping invalid line (expected delimiter '{}'): {}",
-                            lineNum, config.inputDelimiter(), line);
-
-                    continue;
+                if (parts.length < 4) {
+                    if (errorCount <= loggingErrorCount) {
+                        logger.warn(
+                                "Warning (Pass 2, Line {}): Skipping invalid line (expected delimiter '{}'): {}",
+                                lineNum, config.inputDelimiter(), line);
+                        errorCount++;
+                        continue;
+                    }
                 }
 
                 try {
@@ -96,10 +100,12 @@ public class GridDensityPopulator {
                     // Points outside the bounds determined in the first pass are skipped.
                     if (lat < bounds.minLat() || lat > bounds.maxLat() || lon < bounds.minLon()
                             || lon > bounds.maxLon()) {
-
-                        logger.warn(
-                                "Info (Pass 2, Line %d): Skipping point outside fixed bounds (Lat: {}, Lon: {})",
-                                lineNum, lat, lon);
+                        if (errorCount <= loggingErrorCount) {
+                            logger.warn(
+                                    "Info (Pass 2, Line {}): Skipping point outside fixed bounds (Lat: {}, Lon: {})",
+                                    lineNum, lat, lon);
+                        }
+                        errorCount++;
                         continue;
                     }
                     // Calculate the X coordinate (longitude -> column)
@@ -120,26 +126,32 @@ public class GridDensityPopulator {
                         // Map latitude to grid row index
                         // Formula: ((max_lat - current_lat) / total_lat_range) * map_height
                         gridY = (int) (((bounds.maxLat() - lat) / latRange) * mapHeight);
-                    // Clamp coordinates to ensure they are within the valid grid array bounds [0, width-1] and [0, height-1]
+                    // Clamp coordinates to ensure they are within the valid grid array bounds [0,
+                    // width-1] and [0, height-1]
                     gridX = Math.max(0, Math.min(mapWidth - 1, gridX));
                     gridY = Math.max(0, Math.min(mapHeight - 1, gridY));
-                    
+
                     // Increment the count for the calculated grid cell
                     grid[gridY][gridX]++;
                     pointsProcessed++;
 
                 } catch (NumberFormatException e) {
-
-                    logger.warn("Warning (Pass 2, Line {}): Skipping non-numeric data: {} ({})", lineNum,
-                            line, e.getMessage());
-
+                    if (errorCount <= loggingErrorCount)
+                        logger.warn("Warning (Pass 2, Line {}): Skipping non-numeric data: {} ({})", lineNum,
+                                line, e.getMessage());
+                    errorCount++;
                 } catch (ArrayIndexOutOfBoundsException e) {
-
-                    logger.warn("Warning (Pass 2, Line {}): Skipping invalid line format: {}", lineNum,
-                            line);
-
+                    if (errorCount < loggingErrorCount)
+                        logger.warn("Warning (Pass 2, Line {}): Skipping invalid line format: {}", lineNum,
+                                line);
+                    errorCount++;
                 }
             }
+            if (errorCount >= loggingErrorCount)
+                logger.warn("Encountered {} total parse errors (first {} shown).", errorCount, loggingErrorCount);
+            else if (errorCount >0)
+                System.err.printf("Encountered {} total parse errors.", errorCount);
+
             logger.info("Processed {} points during grid population.",
                     pointsProcessed);
         } catch (IOException e) {

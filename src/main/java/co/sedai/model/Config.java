@@ -7,12 +7,11 @@ public record Config(
         String inputDelimiter,
         int inputSkipHeaderLines,
         char[] renderDensityChars,
-        double boundsFixedMinLat,
-        double boundsFixedMaxLat,
-        double boundsFixedMinLon,
-        double boundsFixedMaxLon,
         int latColumn,
-        int longColumn
+        int longColumn,
+        boolean htmlEnabled,
+        String htmlFilePath,
+        long errorCount
 
 ) {
 
