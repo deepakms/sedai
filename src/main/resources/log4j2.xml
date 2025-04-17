@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+	<Appenders>
+		<!-- Console Appender -->
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n" />
+		</Console>
+		<!-- Logger for each run File -->
+		<File name="RunFileLogger"
+          fileName="logs/app-${date:yyyy-MM-dd_HH-mm-ss}.log">
+			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n" />
+		</File>
+	</Appenders>
+	<Loggers>
+		<!-- Optional: Custom log level for your package -->
+		<Logger name="co.sedio.asciiplotter" level="debug" additivity="false">
+			<AppenderRef ref="RunFileLogger"/>
+			<AppenderRef ref="Console"/>
+		</Logger>
+		<!-- Root Logger -->
+		<Root level="info">
+			<AppenderRef ref="RunFileLogger"/>
+			<AppenderRef ref="Console"/>
+		</Root>
+	</Loggers>
+</Configuration>
