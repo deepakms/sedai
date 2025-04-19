@@ -50,21 +50,23 @@ public class Main {
             logger.info("Map Size: {} x {}", config.mapWidth(), config.mapHeight());
             logger.info("Delimiter: '" + config.inputDelimiter() + "'");
             logger.info("Skip Header Lines: " + config.inputSkipHeaderLines());
-            logger.info("Render HTML output : "+ config.htmlEnabled());;
-            
-            
+            logger.info("Render HTML output : " + config.htmlEnabled());
+            ;
+
             Bounds bounds;
             logger.info("Finding data bounds...");
-            GetDatBounds dataBoundsFinder = new GetDatBounds();
-            bounds = dataBoundsFinder.findDataBounds(config);
-            logger.info(bounds.toString());
-            logger.info("Populating grid...");
-            GridDensityPopulator populator = new GridDensityPopulator(config, bounds);
-            long densityGrid[][] = populator.populate();
-            new RenderAsciiMap(densityGrid, config, bounds).renderOutputAsciiMap(config.htmlEnabled());;
-            if (config.htmlEnabled()){
+            long densityGrid[][];
+            if (config.enableParallelProcessing()) {
+                bounds = GetDatBounds.findDataBoundsConcurrently(config);
+                densityGrid = GridDensityPopulator.populateGridConcurrently(config, bounds);
 
+            } else {
+                bounds = GetDatBounds.findDataBounds(config);
+                densityGrid = GridDensityPopulator.populate(config, bounds);
             }
+            RenderAsciiMap.renderOutputAsciiMap(densityGrid, config, bounds);
+            ;
+
         } catch (ConfigurationException e) {
             logger.error("FATAL: Error loading configuration file '{}': {}", DEFAULT_CONFIG_RESOURCE, e.getMessage());
             e.printStackTrace();
@@ -108,8 +110,8 @@ public class Main {
 
         configData = configs.properties(configurationResourceName);
         String filePath = configData.getString("input.file_path");
-        int width = configData.getInt("map.width");
-        int height = configData.getInt("map.height");
+        int width = configData.getInt("map.width", 0);
+        int height = configData.getInt("map.height", 0);
         String delimiter = configData.getString("input.delimiter");
         int skipLines = configData.getInt("input.skip_header_lines");
         String densityCharsStr = configData.getString("render.density_chars");
@@ -118,6 +120,7 @@ public class Main {
         boolean htmlEnabled = configData.getBoolean("render.html_enabled");
         String htmlFilePath = configData.getString("render.file_path");
         long errorCount = configData.getLong("log.error_count");
+        boolean enableParallelProcessing = configData.getBoolean("enable.parallel.processing");
 
         if (filePath == null || filePath.trim().isEmpty())
             throw new IllegalArgumentException("Missing required configuration property: input.file_path");
@@ -134,7 +137,7 @@ public class Main {
         return new Config(
                 filePath.trim(), width, height, delimiter, skipLines,
                 densityCharsStr.toCharArray(),
-                latColumn, longColumn, htmlEnabled, htmlFilePath, errorCount);
+                latColumn, longColumn, htmlEnabled, htmlFilePath, errorCount, enableParallelProcessing);
 
     }
 }

@@ -3,6 +3,13 @@ package co.sedai;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,14 +28,12 @@ import co.sedai.model.Config;
  */
 public class GridDensityPopulator {
 
-    private final Config config;
-    private final Bounds bounds;
     public static Logger logger = LoggerFactory.getLogger(GridDensityPopulator.class);
 
-    public GridDensityPopulator(Config config, Bounds bounds) {
-        this.config = config;
-        this.bounds = bounds;
+    private record Point(int x, int y) {
     }
+
+
 
     /**
      * Reads the data file specified in the configuration, processes each line
@@ -49,9 +54,9 @@ public class GridDensityPopulator {
      *         cell.
      * @throws IOException If an error occurs while reading the input data file.
      */
-    public long[][] populate() throws IOException {
+    public static long[][] populate(Config config,Bounds bounds) throws IOException {
         long[][] grid = new long[config.mapHeight()][config.mapWidth()];
-        logger.info("Populating desntiy grids");
+        logger.info("Populating desntiy grids using sequential read");
         double latRange = bounds.maxLat() - bounds.minLat();
         double lonRange = bounds.maxLon() - bounds.minLon();
         long pointsProcessed = 0;
@@ -62,9 +67,11 @@ public class GridDensityPopulator {
         int mapHeight = config.mapHeight();
         String filePath = config.filePath();
         long errorCount = 0;
-        long loggingErrorCount=config.errorCount();
-        if (loggingErrorCount == -1 ) { loggingErrorCount = Long.MAX_VALUE;}
-
+        long loggingErrorCount = config.errorCount();
+        if (loggingErrorCount == -1) {
+            loggingErrorCount = Long.MAX_VALUE;
+        }
+        long sequentialStartTime = System.nanoTime();
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             for (int i = 0; i < config.inputSkipHeaderLines() && (line = reader.readLine()) != null; i++) {
@@ -149,7 +156,7 @@ public class GridDensityPopulator {
             }
             if (errorCount >= loggingErrorCount)
                 logger.warn("Encountered {} total parse errors (first {} shown).", errorCount, loggingErrorCount);
-            else if (errorCount >0)
+            else if (errorCount > 0)
                 System.err.printf("Encountered {} total parse errors.", errorCount);
 
             logger.info("Processed {} points during grid population.",
@@ -157,6 +164,90 @@ public class GridDensityPopulator {
         } catch (IOException e) {
             logger.error("Error during file processing: " + e.getMessage());
             throw e;
+        }
+        long sequentialEndTime = System.nanoTime();
+        logger.info("Sequential processing completed in  {}",
+                (sequentialEndTime - sequentialStartTime) / 1_000_000_000.0);
+        return grid;
+    }
+
+    public static long[][] populateGridConcurrently(Config config, Bounds bounds) throws IOException {
+        logger.info("Populating desntiy grids using parallel read");
+        long[][] grid = new long[config.mapHeight()][config.mapWidth()];
+        ConcurrentHashMap<Point, LongAdder> concurrentCounts = new ConcurrentHashMap<>();
+        AtomicLong totalProcessedCount = new AtomicLong(0);
+        AtomicLong totalErrorCount = new AtomicLong(0);
+        double latRange = bounds.maxLat() - bounds.minLat();
+        double lonRange = bounds.maxLon() - bounds.minLon();
+        boolean singleLat = latRange == 0.0;
+        boolean singleLon = lonRange == 0.0;
+        long parallelStartTime = System.nanoTime();
+        try (Stream<String> lines = Files.lines(Paths.get(config.filePath()))) {
+            lines.parallel()
+                    .skip(config.inputSkipHeaderLines())
+                    .filter(line -> line != null && !line.trim().isEmpty())
+                    .forEach(line -> {
+                        String[] parts = line.trim().split(config.inputDelimiter());
+                        if (parts.length < 2) {
+                            totalErrorCount.incrementAndGet();
+                            return;
+                        }
+                        try {
+                            double lat = Double.parseDouble(parts[config.latColumn()].trim());
+                            double lon = Double.parseDouble(parts[config.longColumn()].trim());
+
+                            if (lat < bounds.minLat() || lat > bounds.maxLat() || lon < bounds.minLon()
+                                    || lon > bounds.maxLon()) {
+                                return;
+                            }
+
+                            int gridX, gridY;
+                            if (singleLon)
+                                gridX = config.mapWidth() / 2;
+                            else
+                                gridX = (int) (((lon - bounds.minLon()) / lonRange) * config.mapWidth());
+                            if (singleLat)
+                                gridY = config.mapHeight() / 2;
+                            else
+                                gridY = (int) (((bounds.maxLat() - lat) / latRange) * config.mapHeight());
+
+                            // Clamp values
+                            gridX = Math.max(0, Math.min(config.mapWidth() - 1, gridX));
+                            gridY = Math.max(0, Math.min(config.mapHeight() - 1, gridY));
+
+                            Point cellKey = new Point(gridX, gridY);
+                            concurrentCounts.computeIfAbsent(cellKey, k -> new LongAdder()).increment();
+                            totalProcessedCount.incrementAndGet();
+
+                        } catch (NumberFormatException e) {
+                            totalErrorCount.incrementAndGet();
+                        } catch (Exception e) {
+                            totalErrorCount.incrementAndGet();
+                            logger.error(
+                                    "Unexpected error processing line in parallel: '" + line + "' - " + e.getMessage());
+                        }
+                    });
+
+        }
+        logger.info("Merging parallel results to gris");
+
+        for (Map.Entry<Point, LongAdder> entry : concurrentCounts.entrySet()) {
+            Point point = entry.getKey();
+            long count = entry.getValue().sum(); // Get final sum from LongAdder
+            if (point.y() >= 0 && point.y() < config.mapHeight() && point.x() >= 0 && point.x() < config.mapWidth()) {
+                grid[point.y()][point.x()] = count;
+            } else {
+                // Should not happen if clamping works correctly, but good safety check
+                logger.warn("Invalid point {} found during merge.", point);
+            }
+        }
+        long parallelEndTime = System.nanoTime();
+        logger.info(" Parallel processing completed in  {}", (parallelEndTime - parallelStartTime) / 1_000_000_000.0);
+
+        long errors = totalErrorCount.get();
+        if (errors > 0) {
+            logger.warn("\nWarning (Pass 2 Parallel): Encountered {} parsing or boundary errors across all threads.",
+                    errors);
         }
         return grid;
     }

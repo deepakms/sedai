@@ -13,7 +13,7 @@
 	</Appenders>
 	<Loggers>
 		<!-- Optional: Custom log level for your package -->
-		<Logger name="co.sedio.asciiplotter" level="debug" additivity="false">
+		<Logger name="co.sedai" level="debug" additivity="false">
 			<AppenderRef ref="RunFileLogger"/>
 			<AppenderRef ref="Console"/>
 		</Logger>

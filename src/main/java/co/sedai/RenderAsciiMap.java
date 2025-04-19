@@ -22,9 +22,6 @@ import co.sedai.model.Config;
 
 public final class RenderAsciiMap {
     static final Logger logger = LoggerFactory.getLogger(RenderAsciiMap.class);
-    private long[][] grid;
-    private Config config;
-    private Bounds bounds;
 
     /**
      * Renders the provided data grid as a formatted ASCII map, logging the result.
@@ -56,16 +53,16 @@ public final class RenderAsciiMap {
      *               {@link Bounds#minLon()}, {@link Bounds#maxLon()}).
      */
 
-    RenderAsciiMap(long[][] grid, Config config, Bounds bounds) {
-        this.grid = grid;
-        this.config = config;
-        this.bounds = bounds;
-    }
+    // RenderAsciiMap(long[][] grid, Config config, Bounds bounds) {
+    //     this.grid = grid;
+    //     this.config = config;
+    //     this.bounds = bounds;
+    // }
 
-    public void renderOutputAsciiMap(boolean htmlEnabled) throws IOException {
-        String mapString = renderMap();
+    public static void renderOutputAsciiMap(long[][] grid, Config config, Bounds bounds) throws IOException {
+        String mapString = renderMap(config, bounds, grid);
 
-        if (htmlEnabled) {
+        if (config.htmlEnabled()) {
             String htmlFilePath = config.htmlFilePath();
             String htmlMap = renderHtmlMap(mapString);
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(htmlFilePath))) {
@@ -78,7 +75,7 @@ public final class RenderAsciiMap {
         }
     }
 
-    private String renderMap() {
+    private static String renderMap(Config config, Bounds bounds, long[][] grid) {
         long maxCount = 0;
         int mapHeight = config.mapHeight();
         int mapWidth = config.mapWidth();
@@ -197,7 +194,7 @@ public final class RenderAsciiMap {
         return densityChars[index];
     }
 
-    private String renderHtmlMap(String mapContent) {
+    private static String renderHtmlMap(String mapContent) {
         StringBuilder htmlBuilder = new StringBuilder();
         htmlBuilder.append("<!DOCTYPE html>\n");
         htmlBuilder.append("<html lang=\"en\">\n");

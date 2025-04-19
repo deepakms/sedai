@@ -11,7 +11,8 @@ public record Config(
         int longColumn,
         boolean htmlEnabled,
         String htmlFilePath,
-        long errorCount
+        long errorCount,
+        boolean enableParallelProcessing
 
 ) {
 

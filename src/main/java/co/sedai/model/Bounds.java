@@ -7,6 +7,17 @@ public class Bounds {
     public double maxLon = Double.NEGATIVE_INFINITY;
     public long pointCount = 0;
 
+    public Bounds() {
+        this(0, 0, 0, 0, 0);
+    }
+    
+    public Bounds(double minLat, double maxLat, double minLon, double maxLon, long pointCount){
+        this.minLat = minLat;
+        this.maxLat = maxLat;
+        this.minLon = minLon;
+        this.maxLon = maxLon;
+        this.pointCount = pointCount;
+    }
     public double minLat() {
         return minLat;
     }
