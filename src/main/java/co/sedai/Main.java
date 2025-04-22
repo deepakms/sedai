@@ -56,7 +56,7 @@ public class Main {
             Bounds bounds;
             logger.info("Finding data bounds...");
             long densityGrid[][];
-            if (config.enableParallelProcessing()) {
+            if (!config.enableParallelProcessing()) {
                 bounds = GetDatBounds.findDataBoundsConcurrently(config);
                 densityGrid = GridDensityPopulator.populateGridConcurrently(config, bounds);
 
@@ -70,19 +70,18 @@ public class Main {
         } catch (ConfigurationException e) {
             logger.error("FATAL: Error loading configuration file '{}': {}", DEFAULT_CONFIG_RESOURCE, e.getMessage());
             e.printStackTrace();
-            System.exit(1);
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             logger.error("FATAL: Invalid configuration value in '{}': {}", DEFAULT_CONFIG_RESOURCE, e.getMessage());
-            System.exit(1);
+
         } catch (IOException e) {
             logger.error("Error during file processing: " + e.getMessage());
             e.printStackTrace();
-            System.exit(1);
+
         } catch (Exception e) {
             logger.error("An unexpected error occurred: " + e.getMessage());
             e.printStackTrace();
-            System.exit(1);
+
         }
     }
 
@@ -120,7 +119,7 @@ public class Main {
         boolean htmlEnabled = configData.getBoolean("render.html_enabled");
         String htmlFilePath = configData.getString("render.file_path");
         long errorCount = configData.getLong("log.error_count");
-        boolean enableParallelProcessing = configData.getBoolean("enable.parallel.processing");
+        boolean enableParallelProcessing = configData.getBoolean("processing.parallel.enabled");
 
         if (filePath == null || filePath.trim().isEmpty())
             throw new IllegalArgumentException("Missing required configuration property: input.file_path");

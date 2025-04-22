@@ -89,11 +89,10 @@ public class GridDensityPopulator {
 
                 String[] parts = line.split(delimiter);
 
-                if (parts.length < 4) {
+                if (parts.length < config.latColumn() || parts.length < config.longColumn()) {
                     if (errorCount <= loggingErrorCount) {
-                        logger.warn(
-                                "Warning (Pass 2, Line {}): Skipping invalid line (expected delimiter '{}'): {}",
-                                lineNum, config.inputDelimiter(), line);
+                        logger.warn("Skipping invalid line. Expected {} columns, found {}",
+                                    Math.max(config.latColumn(), config.longColumn()), parts.length);
                         errorCount++;
                         continue;
                     }
@@ -157,7 +156,7 @@ public class GridDensityPopulator {
             if (errorCount >= loggingErrorCount)
                 logger.warn("Encountered {} total parse errors (first {} shown).", errorCount, loggingErrorCount);
             else if (errorCount > 0)
-                System.err.printf("Encountered {} total parse errors.", errorCount);
+                logger.warn("Encountered {} total parse errors.", errorCount);
 
             logger.info("Processed {} points during grid population.",
                     pointsProcessed);
@@ -188,7 +187,9 @@ public class GridDensityPopulator {
                     .filter(line -> line != null && !line.trim().isEmpty())
                     .forEach(line -> {
                         String[] parts = line.trim().split(config.inputDelimiter());
-                        if (parts.length < 2) {
+                        if (parts.length < config.latColumn() || parts.length < config.longColumn()) {
+                            logger.warn("Skipping invalid line. Expected {} columns, found {}",
+                                    Math.max(config.latColumn(), config.longColumn()), parts.length);
                             totalErrorCount.incrementAndGet();
                             return;
                         }

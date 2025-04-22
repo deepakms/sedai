@@ -30,7 +30,7 @@ class GridDensityPopulatorTest {
          testConfig = new Config(
                 testCsvPath, // Use path from resources
                 10, 5, ",", 1, densityChars,
-                0, 1, true, "./map.html" , 10// lat=col 0, lon=col 1
+                0, 1, true, "./map.html" ,10, true// lat=col 0, lon=col 1
         );
 
         // // Bounds matching the data in test-points.csv (excluding header and out-of-bounds points)
@@ -45,8 +45,8 @@ class GridDensityPopulatorTest {
 
     @Test
     void populate_SimpleGrid() throws IOException {
-        GridDensityPopulator populator = new GridDensityPopulator(testConfig, testBounds);
-        long[][] grid = populator.populate();
+        long[][] grid   = GridDensityPopulator.populate(testConfig, testBounds);
+
 
         assertNotNull(grid);
         assertEquals(testConfig.mapHeight(), grid.length, "Grid height should match config");
@@ -107,7 +107,7 @@ class GridDensityPopulatorTest {
 
          Config emptyConfig = new Config(
                 emptyFile.getAbsolutePath(),
-                10, 5, ",", 0, " .".toCharArray(), 0, 1,true, "./map.html",10
+                10, 5, ",", 0, " .".toCharArray(), 0, 1,true, "./map.html",10, true
          );
          Bounds emptyBounds = new Bounds();
          testBounds.maxLat = 0.0;
@@ -115,8 +115,8 @@ class GridDensityPopulatorTest {
          testBounds.maxLon = 0.0;
          testBounds.minLon = 0.0;
 
-         GridDensityPopulator populator = new GridDensityPopulator(emptyConfig, emptyBounds);
-         long[][] grid = populator.populate();
+         long[][] grid  =  GridDensityPopulator.populate(emptyConfig, emptyBounds);
+         
 
          // Verify grid is all zeros
          for (long[] row : grid) {

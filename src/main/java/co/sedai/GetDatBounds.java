@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import co.sedai.exception.NoValidDataFoundException;
 import co.sedai.model.Bounds;
 import co.sedai.model.Config;
 
@@ -55,10 +56,10 @@ public class GetDatBounds {
                     continue;
 
                 String[] parts = line.split(delimiter);
-                if (parts.length < 4) {
+                if (parts.length < config.latColumn() || parts.length < config.longColumn()) {
                     if (errorCount <= loggingErrorCount) {
-                        logger.warn("(Pass 1, Line {}): Skipping invalid line. Expected 4 columns, found {}",
-                                lineNum, parts.length);
+                        logger.warn("(Pass 1, Line {}): Skipping invalid line. Expected {} columns, found {}",
+                                lineNum, Math.max(config.latColumn(), config.longColumn()), parts.length);
                     }
                 }
 
@@ -121,7 +122,11 @@ public class GetDatBounds {
                             return null;
 
                         String[] parts = trimmedLine.split(config.inputDelimiter());
+                        if (parts.length < config.latColumn() || parts.length < config.longColumn()) {
+                            logger.warn("Skipping invalid line. Expected {} columns, found {}",
+                                    Math.max(config.latColumn(), config.longColumn()), parts.length);
 
+                        }
                         try {
                             double lat = Double.parseDouble(parts[config.latColumn()].trim());
                             double lon = Double.parseDouble(parts[config.longColumn()].trim());
@@ -176,7 +181,7 @@ public class GetDatBounds {
     private static void validateBounds(Bounds bounds) {
         if (!bounds.isValid()) {
             logger.error("No valid coordinate data found in the file matching config criteria.");
-            System.exit(1);
+            throw new NoValidDataFoundException("No valid coordinate data found in the file matching config criteria.");
         }
         if (!bounds.hasRange()) {
             logger.warn(

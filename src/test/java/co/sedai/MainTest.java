@@ -40,6 +40,8 @@ class MainTest {
         assertEquals(0, config.latColumn());
         assertEquals(1, config.longColumn());
         assertArrayEquals(".123".toCharArray(), config.renderDensityChars());
+        assertEquals(true, config.enableParallelProcessing());
+        assertEquals(true, config.htmlEnabled());
     }
 
     @Test
