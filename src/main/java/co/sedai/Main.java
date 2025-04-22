@@ -56,7 +56,7 @@ public class Main {
             Bounds bounds;
             logger.info("Finding data bounds...");
             long densityGrid[][];
-            if (!config.enableParallelProcessing()) {
+            if (config.enableParallelProcessing()) {
                 bounds = GetDatBounds.findDataBoundsConcurrently(config);
                 densityGrid = GridDensityPopulator.populateGridConcurrently(config, bounds);
 

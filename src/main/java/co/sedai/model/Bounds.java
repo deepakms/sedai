@@ -8,7 +8,7 @@ public class Bounds {
     public long pointCount = 0;
 
     public Bounds() {
-        this(0, 0, 0, 0, 0);
+        this(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 0);
     }
     
     public Bounds(double minLat, double maxLat, double minLon, double maxLon, long pointCount){
